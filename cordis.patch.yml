@@ -1,0 +1,8 @@
+# One installable row mounts the plugin. The Host half is an empty apply; the
+# Web client half (the package's dsh.client manifest) carries the whole
+# feature: a per-model input-modality selector inside every llm-pi-ai provider
+# card on the Models settings page. Provider routes themselves are NOT
+# pre-written here — create and edit them entirely from the Models page.
+- insert:
+    - id: models-input-modalities
+      name: 'dsh-models-input-modalities'
