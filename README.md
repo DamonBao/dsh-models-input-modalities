@@ -17,6 +17,7 @@ The providers themselves (provider ID, API base URL, protocol, API key, model li
 - **Exact adapter semantics** — *Text only* writes `input: [text]`, *Text and image* writes `input: [text, image]`, and *Provider default* removes the field so the row inherits the installed catalog's modalities, then the route's `defaultInput`.
 - **Revision-fenced writes** — the whole `models` array is written back under the revision read when the fold was opened, with the same array semantics and conflict handling as the Models page's own cards: a concurrent edit surfaces a conflict notice and reloads instead of silently clobbering.
 - **Field preservation** — every other field of every row survives verbatim, including fields this card never shows.
+- **Follows the page live** — add or remove a model in the catalog above and the modality rows follow it in place: the fold listens for the pushed `settings/document-updated` invalidation of its own namespace, so nothing has to be closed and reopened. A commit that outruns a running read is caught by revision comparison and re-read until the fold is level. An unsaved draft is never overwritten, not even by a reopen — a change that lands mid-draft parks until the draft settles: revert the edits and the fold re-reads silently, or save and the revision fence refuses the raced write and reloads behind a conflict notice.
 - **Localized UI** — English and Chinese follow the Web UI's locale.
 
 ## Usage
@@ -29,6 +30,8 @@ The providers themselves (provider ID, API base URL, protocol, API key, model li
 ## How it works
 
 The plugin registers its component into the `settings.models.provider-card` extension seat exposed by the Models page (key `llm-pi-ai`, i.e. the cards of the whole pi-ai adapter family). On first expansion the fold reads the provider's stored `models` rows through the settings Remote, edits them locally, and writes the whole array back under the revision captured at read time — the same array semantics and conflict handling as the page's own cards (a concurrent edit prompts a conflict notice and a reload). All fields other than `input` are preserved verbatim in every row.
+
+The fold also subscribes to the Host's forwarded `settings/document-updated` event and filters it to `llm-pi-ai`, so the page's own model-list writes reach it without a remount. An open, clean fold re-reads silently, and keeps re-reading until its data is level with the newest announced revision; a closed one parks the notice and re-reads on the next expansion; one holding an unsaved draft parks the notice until the draft settles, so a reopen never costs edits. The card's own write is recognised by the revision it just committed and does not echo back as a refresh.
 
 ## Installation
 

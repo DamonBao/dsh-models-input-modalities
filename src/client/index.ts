@@ -45,9 +45,11 @@ export const inject = ['slots', 'locale', 'remote', 'remote.settings']
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), `${PKG}: dictionaries`)
   const controller = new ImageInputController(ctx)
+  ctx.effect(() => controller.watch(), `${PKG}: settings invalidations`)
   const face: ImageInputFace = {
     loadModels: entry => controller.load(entry),
     saveModels: (entry, models, revision) => controller.save(entry, models, revision),
+    subscribeChanges: listener => controller.subscribe(listener),
   }
   ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register({
     name: 'settings.models.provider-card',

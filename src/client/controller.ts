@@ -47,11 +47,39 @@ function rows(value: unknown): ModelRow[] {
 
 /** Joins the settings Remote's document view and fenced writes for one card. */
 export class ImageInputController {
+  /** The cards waiting to hear that this namespace's stored section changed. */
+  private readonly listeners = new Set<(revision: number) => void>()
+
   /**
    * @param ctx - the plugin's client context, which declares `remote.settings`
    * in its own `inject`.
    */
   constructor(private readonly ctx: ClientContext) {}
+
+  /**
+   * Start forwarding this namespace's pushed document invalidations to the
+   * cards. The Host emits one per committed write — including the Models page's
+   * own model-list edits — so a card never has to poll or wait for a remount.
+   * @returns the disposer that withdraws the Remote subscription.
+   */
+  watch(): () => void {
+    return this.ctx.remote.$on('settings/document-updated', (ns, revision) => {
+      if (String(ns) !== NS) return
+      for (const listener of [...this.listeners]) listener(revision)
+    })
+  }
+
+  /**
+   * Subscribe one card to namespace invalidations.
+   * @param listener - called with the namespace's new revision on each change.
+   * @returns the disposer for this one subscription.
+   */
+  subscribe(listener: (revision: number) => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
 
   /**
    * Read one provider's model rows and the revision fence for writing them.
