@@ -4,6 +4,11 @@ node_modules/
 
 # Build output
 lib/
+coverage/
+
+# Pack artifacts
+*.tgz
+artifacts/
 
 # Logs
 *.log

@@ -1,0 +1,16 @@
+version: 2
+
+# npm version updates are intentionally not enabled: Dependabot regenerates
+# pnpm-lock.yaml without the workspace overrides in pnpm-workspace.yaml, so
+# its PRs cannot pass `pnpm install --frozen-lockfile`. Dependency bumps are
+# handled manually with `pnpm update`.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions-dependencies:
+        patterns:
+          - '*'

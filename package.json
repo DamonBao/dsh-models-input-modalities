@@ -1,15 +1,36 @@
 {
-  "name": "dsh-models-input-modalities",
+  "name": "@jcy2387/dsh-models-input-modalities",
   "displayName": "Models input modalities",
   "description": "DeepSeek Harness Web plugin: per-model input-modality selector on the Models settings page for third-party (pi-ai) providers",
   "version": "0.1.0",
-  "private": true,
+  "author": "jcy2387",
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DamonBao/dsh-models-input-modalities.git"
+  },
+  "homepage": "https://github.com/DamonBao/dsh-models-input-modalities#readme",
+  "bugs": {
+    "url": "https://github.com/DamonBao/dsh-models-input-modalities/issues"
+  },
   "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "models",
+    "input-modalities",
+    "multimodal",
+    "image-input",
+    "settings"
+  ],
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "exports": {
@@ -30,12 +51,17 @@
     "lib/client.cjs.map",
     "lib/types/**/*.d.ts",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.host.json && tsc -p tsconfig.build.client.json && tsdown",
-    "typecheck": "tsc -p tsconfig.host.json --noEmit && tsc -p tsconfig.client.json --noEmit",
-    "test": "vitest run"
+    "check": "pnpm run typecheck && pnpm test && pnpm run build && pnpm run publint",
+    "prepare": "pnpm run build",
+    "publint": "publint --strict",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.host.json --noEmit && tsc -p tsconfig.client.json --noEmit"
   },
   "dsh": {
     "engines": {
@@ -83,6 +109,7 @@
     "@types/node": "^22.20.0",
     "@types/react": "~18.3.1",
     "lightningcss": "^1.32.0",
+    "publint": "^0.3.21",
     "react": "^18.3.1",
     "tsdown": "^0.22.2",
     "typescript": "^5.9.3",

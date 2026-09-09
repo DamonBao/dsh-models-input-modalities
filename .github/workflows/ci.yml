@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 22.22.0
+          - 24.x
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run checks
+        run: pnpm run check
+
+      - name: Verify release tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'EOF'
+          import { readFile } from 'node:fs/promises'
+          const tagVersion = process.env.RELEASE_TAG.replace(/^v/, '')
+          const manifest = JSON.parse(await readFile('package.json', 'utf8'))
+          if (manifest.version !== tagVersion) {
+            throw new Error(`tag ${process.env.RELEASE_TAG} does not match package version ${manifest.version}`)
+          }
+          EOF
+
+      - name: Audit publishable npm tarball
+        if: matrix.node == '22.22.0'
+        run: |
+          dest="$RUNNER_TEMP/dsh-models-input-modalities-pack"
+          mkdir -p "$dest"
+          pnpm pack --pack-destination "$dest"
+
+          archive="$(find "$dest" -name '*dsh-models-input-modalities*.tgz' -print -quit)"
+          test -n "$archive"
+
+          tar -tzf "$archive" | sort | tee "$dest/files.txt"
+          grep -Fx 'package/lib/index.js' "$dest/files.txt"
+          grep -Fx 'package/lib/client.cjs' "$dest/files.txt"
+          grep -Fx 'package/lib/client.cjs.map' "$dest/files.txt"
+          grep -Fx 'package/lib/types/index.d.ts' "$dest/files.txt"
+          grep -Fx 'package/lib/types/client/index.d.ts' "$dest/files.txt"
+          grep -Fx 'package/cordis.patch.yml' "$dest/files.txt"
+          grep -Fx 'package/README.md' "$dest/files.txt"
+          grep -Fx 'package/README.zh.md' "$dest/files.txt"
+          grep -Fx 'package/LICENSE' "$dest/files.txt"
+
+  consumer-smoke:
+    name: Consumer install + import smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.22.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm run build
+
+      - name: Pack release candidate
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          pnpm pack --pack-destination "$PWD/artifacts"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-package-${{ github.sha }}
+          path: artifacts/*.tgz
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Install the tarball as a consumer dependency
+        shell: bash
+        run: |
+          mkdir -p consumer
+          cd consumer
+          npm init --yes >/dev/null
+          # Resolves the published peer ranges against the real registry; a
+          # broken range fails the job instead of hiding behind the workspace.
+          npm install --no-audit --no-fund \
+            ../artifacts/jcy2387-dsh-models-input-modalities-*.tgz
+
+      - name: Verify shipped artifact contract
+        working-directory: consumer
+        shell: bash
+        run: |
+          PLUGIN="node_modules/@jcy2387/dsh-models-input-modalities"
+
+          test -f "$PLUGIN/lib/index.js"
+          test -f "$PLUGIN/lib/client.cjs"
+          test -f "$PLUGIN/lib/types/index.d.ts"
+          test -f "$PLUGIN/lib/types/client/index.d.ts"
+          test -f "$PLUGIN/cordis.patch.yml"
+
+      - name: Import every Node-side entry point
+        working-directory: consumer
+        shell: bash
+        run: |
+          node --input-type=module -e "
+            const plugin = await import('@jcy2387/dsh-models-input-modalities');
+            if (typeof plugin.apply !== 'function') throw new Error('entry missing apply');
+
+            const manifest = await import('@jcy2387/dsh-models-input-modalities/package.json', { with: { type: 'json' } });
+            if (manifest.default.name !== '@jcy2387/dsh-models-input-modalities') throw new Error('package.json entry broken');
+
+            console.log('consumer import smoke passed');
+          "
+
+          grep -Fq "name: '@jcy2387/dsh-models-input-modalities'" \
+            node_modules/@jcy2387/dsh-models-input-modalities/cordis.patch.yml

@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown'
 import { clientBundle } from './build/client-bundle.ts'
 
-const packageName = 'dsh-models-input-modalities'
+const packageName = '@jcy2387/dsh-models-input-modalities'
 
 /** Build the Host and browser faces directly from source. */
 export default defineConfig([

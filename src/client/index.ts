@@ -32,7 +32,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 const NS = 'settings.models.imageInput'
 
 /** The effect label prefix. */
-const PKG = 'dsh-models-input-modalities'
+const PKG = '@jcy2387/dsh-models-input-modalities'
 
 /** Required browser services. */
 export const inject = ['slots', 'locale', 'remote', 'remote.settings']

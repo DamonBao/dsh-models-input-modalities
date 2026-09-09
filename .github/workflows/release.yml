@@ -1,0 +1,125 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+          run_install: false
+
+      - name: Set up Node.js and npm registry
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.22.0
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; npm 12 requires
+      # node ^22.22.2, newer than the pinned 22.22.0 runner.
+      - name: Upgrade npm for trusted publishing
+        run: npm install --global npm@11
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify release version and resolve dist tag
+        id: version
+        shell: bash
+        env:
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          node --input-type=module <<'EOF'
+          import { readFile } from 'node:fs/promises'
+          import { appendFileSync } from 'node:fs'
+
+          const tagVersion = process.env.RELEASE_TAG.replace(/^v/, '')
+          const manifest = JSON.parse(await readFile('package.json', 'utf8'))
+          if (manifest.version !== tagVersion) {
+            throw new Error(`release tag ${process.env.RELEASE_TAG} must match package version ${manifest.version}`)
+          }
+
+          // Dist tags follow the GitHub Release's pre-release flag: a full
+          // release (checkbox unchecked) publishes to latest — including rc
+          // versions — while a pre-release publishes to the channel tag
+          // derived from the version (0.1.1-alpha.2 -> alpha, 0.1.1-rc.1 ->
+          // rc, unknown channels and stable versions marked as pre-release
+          // -> next).
+          let distTag = 'latest'
+          if (process.env.RELEASE_PRERELEASE === 'true') {
+            const prerelease = manifest.version.split('+')[0].split('-').slice(1).join('-')
+            if (prerelease) {
+              const channel = prerelease.split('.')[0]
+              distTag = /^[a-z][a-z0-9-]*$/i.test(channel) ? channel : 'next'
+            } else {
+              distTag = 'next'
+            }
+          }
+
+          appendFileSync(process.env.GITHUB_OUTPUT, `package-version=${manifest.version}\n`)
+          appendFileSync(process.env.GITHUB_OUTPUT, `dist-tag=${distTag}\n`)
+          console.log(`releasing ${manifest.version} with dist-tag "${distTag}"`)
+          EOF
+
+      - name: Run quality gates
+        run: pnpm run check
+
+      - name: Pack npm tarball
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          pnpm pack --pack-destination "$PWD/artifacts"
+
+      # Publishes via OIDC trusted publishing: no NPM_TOKEN secret is used.
+      # The step is skipped when the version already exists on npm, so a
+      # re-run after a partial failure republishes only what is missing.
+      - name: Publish package to npm with provenance
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.package-version }}
+          DIST_TAG: ${{ steps.version.outputs.dist-tag }}
+        run: |
+          set -euo pipefail
+
+          name='@jcy2387/dsh-models-input-modalities'
+          # The ./ prefix is required: a bare "artifacts/..." path is parsed
+          # by npm as a GitHub user/repo shorthand instead of a local file.
+          archive="./artifacts/jcy2387-dsh-models-input-modalities-$PACKAGE_VERSION.tgz"
+
+          if [[ ! -f "$archive" ]]; then
+            echo "Archive $archive not found." >&2
+            exit 1
+          fi
+
+          if npm view "$name@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "$name@$PACKAGE_VERSION is already published; skipping npm publish."
+            exit 0
+          fi
+
+          echo "Publishing $name@$PACKAGE_VERSION with dist-tag \"$DIST_TAG\"..."
+          npm publish "$archive" --access public --provenance --tag "$DIST_TAG"

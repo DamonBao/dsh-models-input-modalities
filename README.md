@@ -1,55 +1,124 @@
-# dsh-models-input-modalities
+# DSH Models Input Modalities
 
-DeepSeek Harness Web 客户端插件：给**设置 → 模型**页的每个第三方（pi-ai）提供方卡片补上一个
-**「输入模态」折叠区**，按模型声明它的输入模态列表（是否接受图片）——这正是模型页自带表单没有开放的那个字段。
+[![CI](https://github.com/DamonBao/dsh-models-input-modalities/actions/workflows/ci.yml/badge.svg)](https://github.com/DamonBao/dsh-models-input-modalities/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%5E22.19%20%7C%7C%20%3E%3D24-green.svg)](#development)
+[![pnpm](https://img.shields.io/badge/pnpm-11-orange.svg)](#development)
 
-提供方本身（Provider ID、API 地址、协议、密钥、模型列表）仍然完全在模型页的表单里创建和编辑；
-本插件**不预写任何提供方配置**。
+English | [简体中文](README.zh.md)
 
-## 使用
+A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web client plugin that adds an **Input modalities** fold to every third-party (pi-ai) provider card on the **Settings → Models** page, declaring per model which inputs it accepts (whether images are allowed) — exactly the field the page's own forms do not expose. Built against DSH `0.1.5-alpha.1` (peer range `>=0.1.5-alpha.1 <0.2.0`).
 
-1. 安装（见下），重启 `dsh web`。
-2. 设置 → 模型：用**添加自定义提供方**照常创建你的网关提供方（或打开已有的）。
-3. 每张第三方提供方卡片下方出现**输入模态**折叠区，展开后按模型三选一：
-   - **提供方默认** — 不写字段，继承已安装目录的模态，再回退路由 `defaultInput`
-   - **仅文本** — 写入 `input: [text]`
-   - **文本和图片** — 写入 `input: [text, image]`
-4. 点**保存**。写入 `$DSH_HOME/settings.yaml` 用户层，适配器在下一次请求时生效，无需重启。
+The providers themselves (provider ID, API base URL, protocol, API key, model list) are still created and edited entirely through the Models page forms; this plugin **pre-writes no provider configuration**.
 
-## 原理
+## What it does
 
-插件把组件注册进模型页对外开放的 `settings.models.provider-card` 扩展位（key 为
-`llm-pi-ai`，即整个 pi-ai 适配器家族的卡片）。折叠区首次展开时通过 settings Remote 读取该
-提供方存储的 `models` 行，本地编辑后按读取时的 revision 围栏整组写回——与模型页自身卡片
-相同的数组语义与冲突处理（他人同时改动时提示冲突并重新加载）。行内除 `input` 外的所有
-字段原样保留。
+- **A three-way choice per model** — *Provider default*, *Text only*, or *Text and image*.
+- **Exact adapter semantics** — *Text only* writes `input: [text]`, *Text and image* writes `input: [text, image]`, and *Provider default* removes the field so the row inherits the installed catalog's modalities, then the route's `defaultInput`.
+- **Revision-fenced writes** — the whole `models` array is written back under the revision read when the fold was opened, with the same array semantics and conflict handling as the Models page's own cards: a concurrent edit surfaces a conflict notice and reloads instead of silently clobbering.
+- **Field preservation** — every other field of every row survives verbatim, including fields this card never shows.
+- **Localized UI** — English and Chinese follow the Web UI's locale.
 
-## 安装
+## Usage
+
+1. Install (see below) and restart `dsh web`.
+2. **Settings → Models**: create your gateway provider with **Add custom provider** as usual, or open an existing one.
+3. An **Input modalities** fold appears under every third-party provider card; expand it and choose one of the three states per model.
+4. Click **Save**. The claim lands in the user layer of `$DSH_HOME/settings.yaml`; the adapter picks it up on its next request — no restart required.
+
+## How it works
+
+The plugin registers its component into the `settings.models.provider-card` extension seat exposed by the Models page (key `llm-pi-ai`, i.e. the cards of the whole pi-ai adapter family). On first expansion the fold reads the provider's stored `models` rows through the settings Remote, edits them locally, and writes the whole array back under the revision captured at read time — the same array semantics and conflict handling as the page's own cards (a concurrent edit prompts a conflict notice and a reload). All fields other than `input` are preserved verbatim in every row.
+
+## Installation
+
+Prerequisites: DeepSeek Harness (`dsh`) `>=0.1.5-alpha.1 <0.2.0` with the `web` profile.
+
+**From npm:**
 
 ```sh
-dsh plugin --profile web add link:/Users/baojie/Documents/Projects/github/dsh-models-input-modalities
+dsh plugin --profile web add @jcy2387/dsh-models-input-modalities
+dsh web
 ```
 
-- 需要 dsh `>=0.1.5-alpha.1 <0.2.0`（Web profile）。
-- `link:` 直接引用本目录，改动后 `pnpm run build` 再重启 dsh 即可；去掉 `link:` 前缀则是
-  复制安装，更新需要 `dsh plugin --profile web update`。
-- 卸载：`dsh plugin --profile web remove dsh-models-input-modalities`。
+**From a local checkout (development):**
 
-## 开发
+```sh
+git clone https://github.com/DamonBao/dsh-models-input-modalities.git
+cd dsh-models-input-modalities
+pnpm install && pnpm run build
+dsh plugin --profile web add link:$PWD
+```
+
+- `link:` references this directory directly; after a change run `pnpm run build` and restart dsh. Without the `link:` prefix the install is a copy — update it with `dsh plugin --profile web update`.
+- Uninstall: `dsh plugin --profile web remove @jcy2387/dsh-models-input-modalities`.
+
+## Development
+
+Requirements: Node.js `^22.19.0 || >=24.0.0` and pnpm `11.7`.
 
 ```sh
 pnpm install
-pnpm run typecheck   # host + client 双脸
-pnpm test            # 纯函数单测
-pnpm run build       # tsc d.ts + tsdown（lib/index.js 与 lib/client.cjs）
+pnpm run check        # typecheck + test + build + publint, same as CI
 ```
 
-客户端产物是自包含 bundle：React、Cordis、ui-slots、ui-primitives 由 Web 壳供给，CSS Modules
-内联，其余 `@deepseek-ai/*` 只做类型导入（构建期的 purity 检查强制）。
+Individual commands:
 
-## 已知边界
+```sh
+pnpm run typecheck    # host + client faces
+pnpm test             # vitest suites over the pure row helpers
+pnpm run build        # tsc d.ts + tsdown (lib/index.js & lib/client.cjs)
+```
 
-- 休眠（尚未配置）的提供方卡片不渲染折叠区；新建的自定义提供方在**保存之后**才出现。
-- 路由级 `defaultInput` 与内置提供方目录模型的 `modelOverrides` 不在本插件范围内，
-  仍直接在 `$DSH_HOME/settings.yaml` 中设置。
-- 只读设置部署中折叠区可见但不可保存。
+The client artifact is a self-contained bundle: React, Cordis, ui-slots, and ui-primitives are supplied by the Web shell, CSS Modules are inlined, and every other `@deepseek-ai/*` package is a type-only import (enforced by a build-time purity check).
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same gates on Node 22.22.0 and 24.x, verifies on tag pushes that the release tag matches the package version, audits the packed tarball's file list, and runs a consumer smoke test that installs the tarball into a scratch project (resolving the published peer ranges against the real registry) and imports every Node-side entry point.
+
+### Release
+
+Publishing is automated by the **Release** workflow ([`.github/workflows/release.yml`](.github/workflows/release.yml)), which runs whenever a GitHub Release is published. It requires the release tag to equal the package version (an optional `v` prefix is stripped), re-runs the full quality gates, packs the tarball, and publishes to npm with **provenance** via **OIDC trusted publishing** — no long-lived `NPM_TOKEN` secret is involved.
+
+One-time setup: configure [trusted publishing](https://docs.npmjs.com/trusted-publishing) on npmjs.com for `@jcy2387/dsh-models-input-modalities`, authorizing repository `DamonBao/dsh-models-input-modalities` with workflow `release.yml` (no environment).
+
+The dist-tag follows the GitHub Release's pre-release flag: a full release (checkbox unchecked) publishes under `latest` — including rc versions — while a pre-release publishes under the channel tag derived from the version (`0.1.1-alpha.2` → `alpha`, `0.1.1-rc.1` → `rc`). The workflow is idempotent — a version that already exists on npm is skipped, so a re-run after a partial failure republishes only what is missing.
+
+A typical release:
+
+```sh
+# bump the version in package.json, then:
+pnpm run check
+VERSION="$(node -p "require('./package.json').version")"
+git commit -am "release: $VERSION"
+git tag "$VERSION"
+git push origin main --tags
+```
+
+Then create and publish a GitHub Release for that tag.
+
+Dependabot checks GitHub Actions dependencies weekly. npm version updates are intentionally not enabled for Dependabot: it regenerates `pnpm-lock.yaml` without the workspace overrides, so its PRs cannot pass `pnpm install --frozen-lockfile` — bump dependencies manually with `pnpm update`.
+
+### Repository layout
+
+```text
+.
+├─ src/
+│  ├─ index.ts          # Host half: an intentionally empty apply (browser-only plugin)
+│  ├─ image-input.ts    # pure row helpers for the per-model input claim
+│  └─ client/           # Web half: the input-modality fold (controller, card, locales)
+├─ tests/               # vitest suites over the pure row helpers
+├─ build/               # tsdown preset for the self-contained client bundle
+├─ .github/workflows/ci.yml       # validate + tarball audit + consumer smoke
+├─ .github/workflows/release.yml  # npm publish on GitHub Release
+├─ cordis.patch.yml
+└─ README.md / README.zh.md
+```
+
+## Known limitations
+
+- Dormant (not yet configured) provider cards do not render the fold; a freshly created custom provider appears **after** it is saved.
+- Route-level `defaultInput` and `modelOverrides` for built-in provider-catalog models are out of this plugin's scope — set them directly in `$DSH_HOME/settings.yaml`.
+- In read-only settings deployments the fold is visible but cannot save.
+
+## License
+
+[MIT](LICENSE) © jcy2387

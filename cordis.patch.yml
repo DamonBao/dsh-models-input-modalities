@@ -5,4 +5,4 @@
 # pre-written here — create and edit them entirely from the Models page.
 - insert:
     - id: models-input-modalities
-      name: 'dsh-models-input-modalities'
+      name: '@jcy2387/dsh-models-input-modalities'
