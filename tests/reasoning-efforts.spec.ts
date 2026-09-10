@@ -28,7 +28,8 @@ describe('reasoningLevels', () => {
   it('answers the default set for a row declaring nothing', () => {
     expect(reasoningLevels({ id: 'm' })).toEqual(DEFAULT_LEVELS)
     expect(reasoningLevels({ id: 'm', reasoningEfforts: false })).toEqual(DEFAULT_LEVELS)
-    expect(DEFAULT_LEVELS['off']).toEqual({ offered: true, wire: '' })
+    expect(DEFAULT_LEVELS['off']).toEqual({ offered: false, wire: '' })
+    expect(DEFAULT_LEVELS['low']).toEqual({ offered: true, wire: 'low' })
     expect(DEFAULT_LEVELS['high']).toEqual({ offered: true, wire: 'high' })
     expect(DEFAULT_LEVELS['max']).toEqual({ offered: false, wire: '' })
   })
@@ -58,28 +59,34 @@ describe('withReasoning', () => {
     expect(withReasoning({ id: 'm', reasoningEfforts: false }, 'inherit', DEFAULT_LEVELS))
       .toEqual({ id: 'm' })
     expect(withReasoning({ id: 'm', contextWindow: 8 }, 'custom', DEFAULT_LEVELS))
-      .toEqual({ id: 'm', contextWindow: 8, reasoningEfforts: { off: null, low: 'low', medium: 'medium', high: 'high' } })
+      .toEqual({ id: 'm', contextWindow: 8, reasoningEfforts: { low: 'low', medium: 'medium', high: 'high' } })
   })
 
-  it('writes only offered levels, in escalation order, a valueless off as null', () => {
+  it('writes only offered levels, in escalation order', () => {
     const levels = toggleLevel(toggleLevel(DEFAULT_LEVELS, 'max', true), 'low', false)
     const row = withReasoning({ id: 'm' }, 'custom', setWire(levels, 'max', 'ultra'))
-    expect(row).toEqual({ id: 'm', reasoningEfforts: { off: null, medium: 'medium', high: 'high', max: 'ultra' } })
+    expect(row).toEqual({ id: 'm', reasoningEfforts: { medium: 'medium', high: 'high', max: 'ultra' } })
     expect(Object.keys(row['reasoningEfforts'] as Record<string, unknown>))
-      .toEqual(['off', 'medium', 'high', 'max'])
+      .toEqual(['medium', 'high', 'max'])
+  })
+
+  it('stores a valueless off as null', () => {
+    expect(withReasoning({ id: 'm' }, 'custom', toggleLevel(DEFAULT_LEVELS, 'off', true)))
+      .toEqual({ id: 'm', reasoningEfforts: { off: null, low: 'low', medium: 'medium', high: 'high' } })
   })
 
   it('trims a spelling so a stray space cannot reach the wire', () => {
     const levels = setWire(DEFAULT_LEVELS, 'high', '  high  ')
     expect(withReasoning({ id: 'm' }, 'custom', levels)['reasoningEfforts'])
-      .toEqual({ off: null, low: 'low', medium: 'medium', high: 'high' })
+      .toEqual({ low: 'low', medium: 'medium', high: 'high' })
   })
 })
 
 describe('toggleLevel', () => {
   it('starts an offered level from its default spelling and clears a withdrawn one', () => {
     expect(toggleLevel(DEFAULT_LEVELS, 'max', true)['max']).toEqual({ offered: true, wire: 'max' })
-    expect(toggleLevel(DEFAULT_LEVELS, 'off', false)['off']).toEqual({ offered: false, wire: '' })
+    expect(toggleLevel(DEFAULT_LEVELS, 'off', true)['off']).toEqual({ offered: true, wire: '' })
+    expect(toggleLevel(DEFAULT_LEVELS, 'low', false)['low']).toEqual({ offered: false, wire: '' })
     expect(toggleLevel(setWire(DEFAULT_LEVELS, 'high', 'ultra'), 'high', false)['high'])
       .toEqual({ offered: false, wire: '' })
   })

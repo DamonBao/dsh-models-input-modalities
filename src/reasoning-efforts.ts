@@ -64,10 +64,14 @@ function declaring(offered: readonly ThinkingLevel[]): ReasoningLevels {
 
 /**
  * The levels a row with no dict of its own starts from when it is switched to a
- * declared set: `off` plus the three efforts an OpenAI-compatible gateway is
- * most likely to serve, each spelled as its own name.
+ * declared set: the three efforts an OpenAI-compatible gateway is most likely
+ * to serve, each spelled as its own name. `off` is deliberately left unticked:
+ * on the plain `reasoning_effort` wire an empty `off` is the very same request
+ * as naming no effort at all, so pre-offering it would promise a "stop
+ * thinking" choice the endpoint may not honour — the author ticks it, and
+ * spells it, once their endpoint says how.
  */
-export const DEFAULT_LEVELS: ReasoningLevels = declaring(['off', 'low', 'medium', 'high'])
+export const DEFAULT_LEVELS: ReasoningLevels = declaring(['low', 'medium', 'high'])
 
 /**
  * The choice a row's stored `reasoningEfforts` displays. Anything that is not
