@@ -2,7 +2,7 @@
   "name": "@jcy2387/dsh-models-input-modalities",
   "displayName": "Models input modalities",
   "description": "DeepSeek Harness Web plugin: per-model input-modality selector on the Models settings page for third-party (pi-ai) providers",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "jcy2387",
   "type": "module",
   "packageManager": "pnpm@11.7.0",
