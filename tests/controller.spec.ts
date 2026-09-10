@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { ImageInputController } from '../src/client/controller.ts'
+import { ModelCapabilityController } from '../src/client/controller.ts'
 import type { ProviderDirectoryEntry } from '@deepseek-ai/dsh-client-ui-settings-models/client'
 
 /** One card's directory row, addressed at the pi-ai profile `custom-route`. */
@@ -55,10 +55,10 @@ function stubContext(
   return { ctx: ctx as unknown as ClientContext, settings, listeners }
 }
 
-describe('ImageInputController.watch', () => {
+describe('ModelCapabilityController.watch', () => {
   it('fans one pi-ai invalidation out to every subscriber with its revision', () => {
     const { ctx, listeners } = stubContext()
-    const controller = new ImageInputController(ctx)
+    const controller = new ModelCapabilityController(ctx)
     const first = vi.fn()
     const second = vi.fn()
     controller.watch()
@@ -74,7 +74,7 @@ describe('ImageInputController.watch', () => {
 
   it('ignores invalidations of namespaces no card reads', () => {
     const { ctx, listeners } = stubContext()
-    const controller = new ImageInputController(ctx)
+    const controller = new ModelCapabilityController(ctx)
     const seen = vi.fn()
     controller.watch()
     controller.subscribe(seen)
@@ -87,7 +87,7 @@ describe('ImageInputController.watch', () => {
 
   it('stops delivering to a disposed subscription and survives a disposed watch', () => {
     const { ctx, listeners } = stubContext()
-    const controller = new ImageInputController(ctx)
+    const controller = new ModelCapabilityController(ctx)
     const kept = vi.fn()
     const dropped = vi.fn()
     const stopWatch = controller.watch()
@@ -102,7 +102,7 @@ describe('ImageInputController.watch', () => {
   })
 })
 
-describe('ImageInputController.load', () => {
+describe('ModelCapabilityController.load', () => {
   it('prefers the user layer and reports the fence it read at', async () => {
     const { ctx } = stubContext({
       ok: true,
@@ -114,7 +114,7 @@ describe('ImageInputController.load', () => {
         })],
       },
     })
-    const view = await new ImageInputController(ctx).load(entry)
+    const view = await new ModelCapabilityController(ctx).load(entry)
     expect(view).toEqual({
       writable: true,
       revision: 11,
@@ -124,21 +124,21 @@ describe('ImageInputController.load', () => {
   })
 
   it('falls back to the effective list when the user layer owns nothing', async () => {
-    const view = await new ImageInputController(stubContext().ctx).load(entry)
+    const view = await new ModelCapabilityController(stubContext().ctx).load(entry)
     expect(view?.fromUser).toBe(false)
     expect(view?.models).toEqual([{ id: 'inherited' }])
   })
 
   it('answers undefined when the settings face is unavailable', async () => {
     const { ctx } = stubContext({ ok: false, error: { code: 'remote/unavailable', message: 'down' } })
-    expect(await new ImageInputController(ctx).load(entry)).toBeUndefined()
+    expect(await new ModelCapabilityController(ctx).load(entry)).toBeUndefined()
   })
 })
 
-describe('ImageInputController.save', () => {
+describe('ModelCapabilityController.save', () => {
   it('replaces the profile models array under the fence and adopts the new revision', async () => {
     const { ctx, settings } = stubContext()
-    const outcome = await new ImageInputController(ctx).save(entry, [{ id: 'mine' }], 3)
+    const outcome = await new ModelCapabilityController(ctx).save(entry, [{ id: 'mine' }], 3)
     expect(outcome).toEqual({ kind: 'written', revision: 4 })
     expect(settings.mutate).toHaveBeenCalledWith('llm-pi-ai', [
       { op: 'set', path: ['providers', 'custom-route', 'models'], value: [{ id: 'mine' }] },
@@ -150,7 +150,7 @@ describe('ImageInputController.save', () => {
       ok: false,
       error: { code: 'settings/conflict', message: 'stale' },
     })
-    const outcome = await new ImageInputController(ctx).save(entry, [], 3)
+    const outcome = await new ModelCapabilityController(ctx).save(entry, [], 3)
     expect(outcome).toEqual({ kind: 'conflict', message: 'stale' })
   })
 
@@ -159,7 +159,7 @@ describe('ImageInputController.save', () => {
       ok: false,
       error: { code: 'settings/read-only', message: 'read-only' },
     })
-    const outcome = await new ImageInputController(ctx).save(entry, [], 3)
+    const outcome = await new ModelCapabilityController(ctx).save(entry, [], 3)
     expect(outcome).toEqual({ kind: 'refused', message: 'read-only' })
   })
 })

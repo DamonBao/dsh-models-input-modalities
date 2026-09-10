@@ -1,16 +1,16 @@
-/** Settings reads and writes for the image-input card, over the settings Remote. */
+/** Settings reads and writes for the model-capability card, over the settings Remote. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ProviderDirectoryEntry } from '@deepseek-ai/dsh-client-ui-settings-models/client'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
-import type { ModelRow } from '../image-input.ts'
+import type { ModelRow } from '../model-row.ts'
 
 /** The settings namespace every pi-ai provider card addresses. */
 const NS = 'llm-pi-ai'
 
 /** What one load answers for a provider card. */
-export interface ImageInputView {
+export interface ModelCapabilityView {
   /** Whether the deployment accepts settings writes at all. */
   writable: boolean
   /** Revision fence the next save must carry. */
@@ -22,7 +22,7 @@ export interface ImageInputView {
 }
 
 /** What one save answered. */
-export type ImageInputSaveOutcome =
+export type ModelCapabilitySaveOutcome =
   | { readonly kind: 'written'; readonly revision: number }
   | { readonly kind: 'conflict'; readonly message: string }
   | { readonly kind: 'refused'; readonly message: string }
@@ -46,7 +46,7 @@ function rows(value: unknown): ModelRow[] {
 }
 
 /** Joins the settings Remote's document view and fenced writes for one card. */
-export class ImageInputController {
+export class ModelCapabilityController {
   /** The cards waiting to hear that this namespace's stored section changed. */
   private readonly listeners = new Set<(revision: number) => void>()
 
@@ -86,7 +86,7 @@ export class ImageInputController {
    * @param entry - the card's directory row (its settings address names the profile).
    * @returns the view, or undefined when the settings face or namespace is unavailable.
    */
-  async load(entry: ProviderDirectoryEntry): Promise<ImageInputView | undefined> {
+  async load(entry: ProviderDirectoryEntry): Promise<ModelCapabilityView | undefined> {
     const response = await this.ctx.remote.settings.describe()
     if (!response.ok) return undefined
     const namespace = response.value.namespaces.find(view => view.ns === NS)
@@ -115,9 +115,10 @@ export class ImageInputController {
     entry: ProviderDirectoryEntry,
     models: readonly ModelRow[],
     revision: number,
-  ): Promise<ImageInputSaveOutcome> {
-    // The rows came out of a stored JSON document and the edit only ever sets
-    // string arrays, so the array is JSON by construction.
+  ): Promise<ModelCapabilitySaveOutcome> {
+    // The rows came out of a stored JSON document and the edits only ever set
+    // string arrays, `false`, and dicts of strings and nulls, so the array is
+    // JSON by construction.
     const value = models as unknown as JsonValue
     const ops: SettingsPathOpView[] = [{ op: 'set', path: [...entry.settingsPath, 'models'], value }]
     const response = await this.ctx.remote.settings.mutate(NS, ops, revision)

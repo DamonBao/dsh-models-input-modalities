@@ -1,7 +1,6 @@
 /** Pure row helpers for the per-model image-input claim. */
 
-/** One configured model row, structurally open so hidden fields survive an edit. */
-export type ModelRow = Record<string, unknown>
+import type { ModelRow } from './model-row.ts'
 
 /** The three image-input states a row's select offers. */
 export type ImageInputChoice = 'inherit' | 'text' | 'image'
@@ -44,15 +43,4 @@ export function withImageInput(row: ModelRow, choice: ImageInputChoice): ModelRo
  */
 export function parseImageInputChoice(value: string): ImageInputChoice | undefined {
   return value === 'inherit' || value === 'text' || value === 'image' ? value : undefined
-}
-
-/**
- * The row's model id for labels.
- * @param row - one stored model row.
- * @param index - the row's zero-based position.
- * @returns the id, or a positional name for an id-less row.
- */
-export function rowId(row: ModelRow, index: number): string {
-  const id = row['id']
-  return typeof id === 'string' && id.length > 0 ? id : `#${String(index + 1)}`
 }

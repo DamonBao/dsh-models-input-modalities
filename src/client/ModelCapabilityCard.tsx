@@ -1,12 +1,14 @@
 /**
- * One pi-ai provider card's image-input fold: the per-model modality claim the
- * Models page's own form does not carry. The fold loads the provider's stored
- * rows when first opened, edits them locally, and writes the whole `models`
- * array back under the revision fence the load answered — the same array
- * semantics the page's own cards use. A stored change elsewhere on the page (a
- * model added or removed in the catalog above) reaches the fold through the
- * pushed settings invalidation, so the list it shows never waits for the
- * section to remount.
+ * One pi-ai provider card's model-capability fold: the per-model claims the
+ * Models page's own form does not carry — which inputs a model accepts, and
+ * which reasoning levels it offers. The fold loads the provider's stored rows
+ * when first opened, edits them locally, and writes the whole `models` array
+ * back under the revision fence the load answered — the same array semantics
+ * the page's own cards use, and the reason both claims live in one fold: two
+ * folds would write the same array and fence each other into conflicts. A
+ * stored change elsewhere on the page (a model added or removed in the catalog
+ * above) reaches the fold through the pushed settings invalidation, so the list
+ * it shows never waits for the section to remount.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -14,43 +16,56 @@ import type { ReactNode } from 'react'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ProviderDirectoryEntry } from '@deepseek-ai/dsh-client-ui-settings-models/client'
-import type { ImageInputSaveOutcome, ImageInputView } from './controller.ts'
-import { imageInputChoice, parseImageInputChoice, rowId, withImageInput } from '../image-input.ts'
-import type { ImageInputChoice, ModelRow } from '../image-input.ts'
+import type { ModelCapabilitySaveOutcome, ModelCapabilityView } from './controller.ts'
+import { imageInputChoice, parseImageInputChoice, withImageInput } from '../image-input.ts'
+import type { ImageInputChoice } from '../image-input.ts'
+import { rowId } from '../model-row.ts'
+import type { ModelRow } from '../model-row.ts'
+import {
+  THINKING_LEVELS,
+  parseReasoningChoice,
+  reasoningChoice,
+  reasoningFailure,
+  reasoningLevels,
+  setWire,
+  toggleLevel,
+  withReasoning,
+} from '../reasoning-efforts.ts'
+import type { ReasoningChoice, ReasoningLevels, ThinkingLevel } from '../reasoning-efforts.ts'
 import css from './styles.module.css'
 
 /** The registration-side face this card receives. */
-export interface ImageInputFace {
+export interface ModelCapabilityFace {
   /** Read the provider's rows and revision fence; undefined when the settings face is unavailable. */
-  loadModels(entry: ProviderDirectoryEntry): Promise<ImageInputView | undefined>
+  loadModels(entry: ProviderDirectoryEntry): Promise<ModelCapabilityView | undefined>
   /** Write the rows back under the fence the load answered. */
   saveModels(
     entry: ProviderDirectoryEntry,
     models: readonly ModelRow[],
     revision: number,
-  ): Promise<ImageInputSaveOutcome>
+  ): Promise<ModelCapabilitySaveOutcome>
   /** Listen for stored changes in the provider namespace; receives its new revision. */
   subscribeChanges(listener: (revision: number) => void): () => void
 }
 
 /** Props the provider-card slot binds. */
-export type ImageInputCardProps =
+export type ModelCapabilityCardProps =
   PropsRuntime<'settings.models.provider-card'>
-  & PropsLocale<'settings.models.imageInput'>
-  & InjectFace<ImageInputFace>
+  & PropsLocale<'settings.models.modelCapabilities'>
+  & InjectFace<ModelCapabilityFace>
 
 /** Lifecycle of one fold: closed, loading, editable, or writing. */
 type Status = 'idle' | 'loading' | 'ready' | 'saving'
 
 /**
- * Render the image-input fold of one provider card.
+ * Render the model-capability fold of one provider card.
  * @param props - the card's directory row plus the bound face and copy.
  * @returns the fold, or nothing while the provider is still a dormant row.
  */
-export function ImageInputCard(props: ImageInputCardProps): ReactNode {
+export function ModelCapabilityCard(props: ModelCapabilityCardProps): ReactNode {
   const { provider, configured, t, loadModels, saveModels, subscribeChanges } = props
   const [status, setStatus] = useState<Status>('idle')
-  const [view, setView] = useState<ImageInputView | undefined>(undefined)
+  const [view, setView] = useState<ModelCapabilityView | undefined>(undefined)
   const [rows, setRows] = useState<readonly ModelRow[]>([])
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [saved, setSaved] = useState(false)
@@ -149,12 +164,34 @@ export function ImageInputCard(props: ImageInputCardProps): ReactNode {
   // card dispatches this seat only after the provider is saved anyway.
   if (configured !== true) return null
 
-  const choose = (index: number, choice: ImageInputChoice): void => {
+  const chooseInput = (index: number, choice: ImageInputChoice): void => {
     setRows(current => current.map((row, at) => at === index ? withImageInput(row, choice) : row))
   }
 
+  const chooseReasoning = (index: number, choice: ReasoningChoice): void => {
+    setRows(current => current.map((row, at) =>
+      at === index ? withReasoning(row, choice, reasoningLevels(row)) : row))
+  }
+
+  /**
+   * Patch one row's declared levels. The edit runs inside the state updater and
+   * re-reads the row there, so two controls changed in one batch each see what
+   * the previous one wrote.
+   * @param index - the row to patch.
+   * @param edit - the level-set transformation.
+   */
+  const patchLevels = (index: number, edit: (levels: ReasoningLevels) => ReasoningLevels): void => {
+    setRows(current => current.map((row, at) =>
+      at === index ? withReasoning(row, 'custom', edit(reasoningLevels(row))) : row))
+  }
+
+  // A row the adapter would refuse is named here, next to the control that
+  // caused it, instead of answered as a rejected settings mutation.
+  const unsavable = rows.some(row => reasoningFailure(row) !== undefined)
+  const locked = view === undefined || !view.writable || status === 'saving'
+
   const submit = async (): Promise<void> => {
-    if (view === undefined) return
+    if (view === undefined || unsavable) return
     setStatus('saving')
     const outcome = await saveModels(provider, rows, view.revision)
     if (outcome.kind === 'written') {
@@ -206,31 +243,105 @@ export function ImageInputCard(props: ImageInputCardProps): ReactNode {
             : (
               <>
                 {view.fromUser ? null : <p className={css['hint']}>{t('inheritsHint')}</p>}
-                {rows.map((row, index) => (
-                  <label key={index} className={css['row']}>
-                    <span className={css['rowId']}>{rowId(row, index)}</span>
-                    <select
-                      className={css['select']}
-                      value={imageInputChoice(row)}
-                      aria-label={`${t('title')} ${rowId(row, index)}`}
-                      disabled={!view.writable || status === 'saving'}
-                      onChange={(event) => {
-                        const next = parseImageInputChoice(event.target.value)
-                        if (next !== undefined) choose(index, next)
-                      }}
-                    >
-                      <option value="inherit">{t('choiceDefault')}</option>
-                      <option value="text">{t('choiceText')}</option>
-                      <option value="image">{t('choiceImage')}</option>
-                    </select>
-                  </label>
-                ))}
+                {rows.map((row, index) => {
+                  const id = rowId(row, index)
+                  const reasoning = reasoningChoice(row)
+                  const levels = reasoningLevels(row)
+                  const invalid = reasoningFailure(row)
+                  return (
+                    <div key={index} className={css['model']}>
+                      <div className={css['row']}>
+                        <span className={css['rowId']}>{id}</span>
+                        <label className={css['field']}>
+                          <span className={css['fieldLabel']}>{t('inputLabel')}</span>
+                          <select
+                            className={css['select']}
+                            value={imageInputChoice(row)}
+                            aria-label={`${t('inputLabel')} ${id}`}
+                            disabled={locked}
+                            onChange={(event) => {
+                              const next = parseImageInputChoice(event.target.value)
+                              if (next !== undefined) chooseInput(index, next)
+                            }}
+                          >
+                            <option value="inherit">{t('choiceDefault')}</option>
+                            <option value="text">{t('choiceText')}</option>
+                            <option value="image">{t('choiceImage')}</option>
+                          </select>
+                        </label>
+                        <label className={css['field']}>
+                          <span className={css['fieldLabel']}>{t('reasoningLabel')}</span>
+                          <select
+                            className={css['select']}
+                            value={reasoning}
+                            aria-label={`${t('reasoningLabel')} ${id}`}
+                            disabled={locked}
+                            onChange={(event) => {
+                              const next = parseReasoningChoice(event.target.value)
+                              if (next !== undefined) chooseReasoning(index, next)
+                            }}
+                          >
+                            <option value="inherit">{t('reasoningInherit')}</option>
+                            <option value="none">{t('reasoningNone')}</option>
+                            <option value="custom">{t('reasoningCustom')}</option>
+                          </select>
+                        </label>
+                      </div>
+                      {reasoning === 'custom'
+                        ? (
+                          <div className={css['levels']}>
+                            <div className={css['levelGrid']}>
+                              {THINKING_LEVELS.map((level: ThinkingLevel) => (
+                                <div key={level} className={css['levelRow']}>
+                                  <label className={css['levelOffered']}>
+                                    <input
+                                      type="checkbox"
+                                      checked={levels[level].offered}
+                                      disabled={locked}
+                                      onChange={(event) => {
+                                        // Read the control here: a state updater runs later, against
+                                        // a value React has already reconciled back.
+                                        const offered = event.target.checked
+                                        patchLevels(index, current => toggleLevel(current, level, offered))
+                                      }}
+                                    />
+                                    <span>{level}</span>
+                                  </label>
+                                  <input
+                                    className={css['wire']}
+                                    type="text"
+                                    value={levels[level].wire}
+                                    placeholder={level === 'off' ? t('wireNothing') : level}
+                                    aria-label={`${t('wireLabel')} ${level}`}
+                                    spellCheck={false}
+                                    disabled={locked || !levels[level].offered}
+                                    onChange={(event) => {
+                                      const wire = event.target.value
+                                      patchLevels(index, current => setWire(current, level, wire))
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <p className={css['hint']}>{t('reasoningHint')}</p>
+                            {invalid === 'needsWire'
+                              ? <p className={css['error']}>{`${id}: ${t('needsWire')}`}</p>
+                              : null}
+                            {invalid === 'needsLevel'
+                              ? <p className={css['error']}>{`${id}: ${t('needsLevel')}`}</p>
+                              : null}
+                          </div>
+                        )
+                        : null}
+                    </div>
+                  )
+                })}
                 {failure !== undefined ? <p className={css['error']}>{failure}</p> : null}
                 <div className={css['footer']}>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={!view.writable || status === 'saving' || !dirty}
+                    disabled={locked || !dirty || unsavable}
                     onClick={() => { void submit() }}
                   >
                     {status === 'saving' ? t('saving') : t('save')}

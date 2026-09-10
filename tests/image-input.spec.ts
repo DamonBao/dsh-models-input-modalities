@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { imageInputChoice, parseImageInputChoice, rowId, withImageInput } from '../src/image-input.ts'
+import { imageInputChoice, parseImageInputChoice, withImageInput } from '../src/image-input.ts'
 
 describe('imageInputChoice', () => {
   it('reads absent, empty, malformed, text, and image lists', () => {
@@ -29,13 +29,5 @@ describe('parseImageInputChoice', () => {
     expect(parseImageInputChoice('text')).toBe('text')
     expect(parseImageInputChoice('image')).toBe('image')
     expect(parseImageInputChoice('audio')).toBeUndefined()
-  })
-})
-
-describe('rowId', () => {
-  it('names a row by its id or by position', () => {
-    expect(rowId({ id: 'acme' }, 0)).toBe('acme')
-    expect(rowId({ id: '' }, 2)).toBe('#3')
-    expect(rowId({}, 0)).toBe('#1')
   })
 })

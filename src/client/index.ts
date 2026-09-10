@@ -1,8 +1,9 @@
 /**
- * Browser half: the per-model image-input fold inside every llm-pi-ai provider
- * card of the Models settings page. The Host half is empty; provider routes
- * are created and edited through the page's own forms, and this plugin only
- * adds the one field those forms do not carry.
+ * Browser half: the per-model capability fold inside every llm-pi-ai provider
+ * card of the Models settings page — the input modalities and the reasoning
+ * levels a model offers, the two per-model claims the page's own forms
+ * deliberately leave to `settings.yaml`. The Host half is empty; provider
+ * routes are created and edited through the page's own forms.
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -15,21 +16,21 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: pulls the 'settings.models.provider-card' SlotMap entry and the
 // ProviderDirectoryEntry owner data.
 import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'
-import { ImageInputController } from './controller.ts'
-import { ImageInputCard } from './ImageInputCard.tsx'
-import type { ImageInputFace } from './ImageInputCard.tsx'
+import { ModelCapabilityController } from './controller.ts'
+import { ModelCapabilityCard } from './ModelCapabilityCard.tsx'
+import type { ModelCapabilityFace } from './ModelCapabilityCard.tsx'
 import { en, zh } from './locales.ts'
-import type { ImageInputKey } from './locales.ts'
+import type { ModelCapabilityKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Per-model image-input copy on the Models page. */
-    'settings.models.imageInput': ImageInputKey
+    /** Per-model capability copy on the Models page. */
+    'settings.models.modelCapabilities': ModelCapabilityKey
   }
 }
 
 /** Dictionary namespace owned by this plugin. */
-const NS = 'settings.models.imageInput'
+const NS = 'settings.models.modelCapabilities'
 
 /** The effect label prefix. */
 const PKG = '@jcy2387/dsh-models-input-modalities'
@@ -38,15 +39,15 @@ const PKG = '@jcy2387/dsh-models-input-modalities'
 export const inject = ['slots', 'locale', 'remote', 'remote.settings']
 
 /**
- * Register the image-input fold on every llm-pi-ai provider card once the
+ * Register the model-capability fold on every llm-pi-ai provider card once the
  * Models section has declared the seat.
  * @param ctx - the plugin's client context.
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), `${PKG}: dictionaries`)
-  const controller = new ImageInputController(ctx)
+  const controller = new ModelCapabilityController(ctx)
   ctx.effect(() => controller.watch(), `${PKG}: settings invalidations`)
-  const face: ImageInputFace = {
+  const face: ModelCapabilityFace = {
     loadModels: entry => controller.load(entry),
     saveModels: (entry, models, revision) => controller.save(entry, models, revision),
     subscribeChanges: listener => controller.subscribe(listener),
@@ -56,5 +57,5 @@ export function apply(ctx: ClientContext): void {
     key: 'llm-pi-ai',
     locale: NS,
     inject: () => face,
-  }, ImageInputCard))
+  }, ModelCapabilityCard))
 }
