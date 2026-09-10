@@ -20,7 +20,7 @@ The providers themselves (provider ID, API base URL, protocol, API key, model li
 
 **Reasoning levels**
 
-- **A three-way choice per model** — *Catalog default*, *Not a reasoning model*, or *Declare levels…*, which unfolds the seven levels (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`) as a tick box plus the wire spelling to send for it.
+- **A three-way choice per model** — *Catalog default*, *Not a reasoning model*, or *Declare levels*, which unfolds the seven levels (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`) as a tick box plus the wire spelling to send for it.
 - **Exact adapter semantics** — a declared set writes the `reasoningEfforts` dict the adapter reads: every ticked level becomes a key whose value is the spelling dispatch sends, so `max: ultra` renames a level for a gateway with its own vocabulary, and an empty `off` stores a valueless `off:` — offered, and sent as no parameter at all. *Not a reasoning model* writes `reasoningEfforts: false`; *Catalog default* removes the field, keeping the installed catalog's capability, which for a hand-declared model is none.
 - **This is what puts levels in the picker** — the composer's model picker lists exactly the levels a model declares, so a gateway model added by hand gains its Off/Low/Medium/High choices here and nowhere else in the UI.
 - **Refused before the write** — the adapter rejects a declared set with no level beyond `off`, and any level but `off` with no wire value; the card names the offending row and keeps **Save** closed rather than answering a rejected settings mutation.
@@ -37,7 +37,7 @@ The providers themselves (provider ID, API base URL, protocol, API key, model li
 
 1. Install (see below) and restart `dsh web`.
 2. **Settings → Models**: create your gateway provider with **Add custom provider** as usual, or open an existing one.
-3. A **Model capabilities** fold appears under every third-party provider card; expand it and, per model, pick its input modalities and its reasoning state — for a model that reasons, choose *Declare levels…* and tick the levels its endpoint serves.
+3. A **Model capabilities** fold appears under every third-party provider card; expand it and, per model, pick its input modalities and its reasoning state — for a model that reasons, choose *Declare levels* and tick the levels its endpoint serves.
 4. Click **Save**. The claim lands in the user layer of `$DSH_HOME/settings.yaml`; the adapter picks it up on its next request — no restart required.
 
 A model declared here writes exactly this (other fields of the row untouched):
