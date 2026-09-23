@@ -56,6 +56,18 @@ function stubContext(
 }
 
 describe('ModelCapabilityController.watch', () => {
+  it('invalidates only cards addressed at the changed loader entry', () => {
+    const { ctx, listeners } = stubContext()
+    const controller = new ModelCapabilityController(ctx)
+    const first = vi.fn()
+    const second = vi.fn()
+    controller.watch()
+    controller.subscribe(first, 'pi-ai-primary')
+    controller.subscribe(second, 'pi-ai-secondary')
+    listeners[0]?.('pi-ai-secondary', 12)
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledWith(12)
+  })
   it('fans one pi-ai invalidation out to every subscriber with its revision', () => {
     const { ctx, listeners } = stubContext()
     const controller = new ModelCapabilityController(ctx)
@@ -103,6 +115,19 @@ describe('ModelCapabilityController.watch', () => {
 })
 
 describe('ModelCapabilityController.load', () => {
+  it('uses the provider directory namespace when its loader entry was renamed', async () => {
+    const { ctx, settings } = stubContext({ ok: true, value: {
+      writable: true,
+      namespaces: [namespaceView({ ns: 'custom-pi-ai', revision: 18 })],
+    } })
+    const provider = { ...entry, settingsNs: 'custom-pi-ai' }
+    const controller = new ModelCapabilityController(ctx)
+    expect(await controller.load(provider)).toMatchObject({ models: [{ id: 'inherited' }], revision: 18 })
+    await controller.save(provider, [{ id: 'inherited', input: ['text', 'image'] }], 18)
+    expect(settings.mutate).toHaveBeenCalledWith('custom-pi-ai', [
+      { op: 'set', path: ['providers', 'custom-route', 'models'], value: [{ id: 'inherited', input: ['text', 'image'] }] },
+    ], 18)
+  })
   it('prefers the user layer and reports the fence it read at', async () => {
     const { ctx } = stubContext({
       ok: true,

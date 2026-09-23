@@ -45,7 +45,7 @@ export interface ModelCapabilityFace {
     revision: number,
   ): Promise<ModelCapabilitySaveOutcome>
   /** Listen for stored changes in the provider namespace; receives its new revision. */
-  subscribeChanges(listener: (revision: number) => void): () => void
+  subscribeChanges(listener: (revision: number) => void, namespace: string): () => void
 }
 
 /** Props the provider-card slot binds. */
@@ -149,8 +149,8 @@ export function ModelCapabilityCard(props: ModelCapabilityCardProps): ReactNode 
       // echo, or a notice whose commit the last adopted read already caught.
       if (revision <= seen.current) return
       setStale(true)
-    })
-  }, [configured, subscribeChanges])
+    }, provider.settingsNs)
+  }, [configured, subscribeChanges, provider.settingsNs])
 
   // An open fold with nothing at stake adopts the change immediately; one that
   // is closed or holds a draft waits for the toggle handler or the fence. The

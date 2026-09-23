@@ -6,7 +6,7 @@ import type { ProviderDirectoryEntry } from '@deepseek-ai/dsh-client-ui-settings
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { ModelRow } from '../model-row.ts'
 
-/** The settings namespace every pi-ai provider card addresses. */
+/** Default entry id for callers without a provider directory row. */
 const NS = 'llm-pi-ai'
 
 /** What one load answers for a provider card. */
@@ -48,7 +48,7 @@ function rows(value: unknown): ModelRow[] {
 /** Joins the settings Remote's document view and fenced writes for one card. */
 export class ModelCapabilityController {
   /** The cards waiting to hear that this namespace's stored section changed. */
-  private readonly listeners = new Set<(revision: number) => void>()
+  private readonly listeners = new Map<(revision: number) => void, string>()
 
   /**
    * @param ctx - the plugin's client context, which declares `remote.settings`
@@ -64,18 +64,20 @@ export class ModelCapabilityController {
    */
   watch(): () => void {
     return this.ctx.remote.$on('settings/document-updated', (ns, revision) => {
-      if (String(ns) !== NS) return
-      for (const listener of [...this.listeners]) listener(revision)
+      for (const [listener, namespace] of [...this.listeners]) {
+        if (String(ns) === namespace) listener(revision)
+      }
     })
   }
 
   /**
    * Subscribe one card to namespace invalidations.
    * @param listener - called with the namespace's new revision on each change.
+   * @param namespace - actual provider entry id from the directory.
    * @returns the disposer for this one subscription.
    */
-  subscribe(listener: (revision: number) => void): () => void {
-    this.listeners.add(listener)
+  subscribe(listener: (revision: number) => void, namespace = NS): () => void {
+    this.listeners.set(listener, namespace)
     return () => {
       this.listeners.delete(listener)
     }
@@ -89,7 +91,7 @@ export class ModelCapabilityController {
   async load(entry: ProviderDirectoryEntry): Promise<ModelCapabilityView | undefined> {
     const response = await this.ctx.remote.settings.describe()
     if (!response.ok) return undefined
-    const namespace = response.value.namespaces.find(view => view.ns === NS)
+    const namespace = response.value.namespaces.find(view => view.ns === entry.settingsNs)
     if (namespace === undefined) return undefined
     const path = [...entry.settingsPath, 'models']
     const userModel = at(namespace.user, path)
@@ -121,7 +123,7 @@ export class ModelCapabilityController {
     // JSON by construction.
     const value = models as unknown as JsonValue
     const ops: SettingsPathOpView[] = [{ op: 'set', path: [...entry.settingsPath, 'models'], value }]
-    const response = await this.ctx.remote.settings.mutate(NS, ops, revision)
+    const response = await this.ctx.remote.settings.mutate(entry.settingsNs, ops, revision)
     if (response.ok) return { kind: 'written', revision: response.value.revision }
     const { code, message } = response.error
     return code === 'settings/conflict' ? { kind: 'conflict', message } : { kind: 'refused', message }

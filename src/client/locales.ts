@@ -3,10 +3,11 @@
 /** English strings (the key-set source of truth for this pair). */
 export const en = {
   title: 'Model capabilities',
+  noProviders: 'Add a provider and models in Settings → Models to configure their capabilities here.',
   loading: 'Loading the model list…',
   loadFailed: 'Loading the model configuration failed.',
   retry: 'Retry',
-  empty: 'No explicit model list yet — add models in the catalog above, then declare what each one accepts and reasons with here.',
+  empty: 'No explicit model list yet — add models in Settings → Models, then declare what each one accepts and reasons with here.',
   inheritsHint: 'Showing the inherited model list; saving copies it into your user settings.',
   readOnly: 'The settings document is read-only in this deployment.',
   inputLabel: 'Input modalities',
@@ -34,10 +35,11 @@ export type ModelCapabilityKey = keyof typeof en
 /** Chinese strings (same keys as {@link en}). */
 export const zh: { [Key in keyof typeof en]: string } = {
   title: '模型能力',
+  noProviders: '请先在设置 → 模型中添加提供方和模型，再在此配置模型能力',
   loading: '正在读取模型列表…',
   loadFailed: '读取模型配置失败。',
   retry: '重试',
-  empty: '还没有显式模型列表——请先在上方模型目录中添加模型，再回到这里声明每个模型接受的输入与推理等级。',
+  empty: '还没有显式模型列表——请先在设置 → 模型中添加模型，再回到这里声明每个模型接受的输入与推理等级。',
   inheritsHint: '当前显示的是继承的模型列表；保存会将其复制到你的用户设置层。',
   readOnly: '当前部署的设置文档为只读。',
   inputLabel: '输入模态',

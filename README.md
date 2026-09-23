@@ -7,7 +7,7 @@
 
 English | [简体中文](README.zh.md)
 
-A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web client plugin that adds a **Model capabilities** fold to every third-party (pi-ai) provider card on the **Settings → Models** page, declaring per model which inputs it accepts (whether images are allowed) and which reasoning levels it offers — the two per-model fields the page's own forms deliberately do not expose. Built against DSH `0.1.5-alpha.1` (peer range `>=0.1.5-alpha.1 <0.2.0`).
+A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web client plugin that adds a **Model capabilities** fold to every third-party (pi-ai) provider card on the **Settings → Models** page, declaring per model which inputs it accepts (whether images are allowed) and which reasoning levels it offers — the two per-model fields the page's own forms deliberately do not expose. Built against DSH `0.1.7-rc.1` (peer range `>=0.1.7-rc.1 <0.1.8-0`).
 
 The providers themselves (provider ID, API base URL, protocol, API key, model list) are still created and edited entirely through the Models page forms; this plugin **pre-writes no provider configuration**.
 
@@ -39,7 +39,7 @@ The providers themselves (provider ID, API base URL, protocol, API key, model li
 1. Install (see below) and restart `dsh web`.
 2. **Settings → Models**: create your gateway provider with **Add custom provider** as usual, or open an existing one.
 3. A **Model capabilities** fold appears under every third-party provider card; expand it and, per model, pick its input modalities and its reasoning state — for a model that reasons, choose *Declare levels* and tick the levels its endpoint serves.
-4. Click **Save**. The claim lands in the user layer of `$DSH_HOME/settings.yaml`; the adapter picks it up on its next request — no restart required.
+4. Click **Save**. The claim lands in the user layer of `$DSH_HOME/profiles/<profile>/cordis.patch.yml`; the adapter picks it up on its next request — no restart required.
 
 A model declared here writes exactly this (other fields of the row untouched):
 
@@ -63,11 +63,21 @@ models:
 
 The plugin registers its component into the `settings.models.provider-card` extension seat exposed by the Models page (key `llm-pi-ai`, i.e. the cards of the whole pi-ai adapter family). On first expansion the fold reads the provider's stored `models` rows through the settings Remote, edits them locally, and writes the whole array back under the revision captured at read time — the same array semantics and conflict handling as the page's own cards (a concurrent edit prompts a conflict notice and a reload). All fields other than `input` and `reasoningEfforts` are preserved verbatim in every row.
 
-The fold also subscribes to the Host's forwarded `settings/document-updated` event and filters it to `llm-pi-ai`, so the page's own model-list writes reach it without a remount. An open, clean fold re-reads silently, and keeps re-reading until its data is level with the newest announced revision; a closed one parks the notice and re-reads on the next expansion; one holding an unsaved draft parks the notice until the draft settles, so a reopen never costs edits. The card's own write is recognised by the revision it just committed and does not echo back as a refresh.
+The fold also subscribes to the Host's forwarded `settings/document-updated` event and filters it to the provider directory’s actual `settingsNs`, so the page's own model-list writes reach it without a remount. An open, clean fold re-reads silently, and keeps re-reading until its data is level with the newest announced revision; a closed one parks the notice and re-reads on the next expansion; one holding an unsaved draft parks the notice until the draft settles, so a reopen never costs edits. The card's own write is recognised by the revision it just committed and does not echo back as a refresh.
+
+## Plugin settings and migration
+
+The **Plugins → Model capabilities** page also lists the capability editors for configured third-party providers. The existing **Settings → Models** card entry remains; both edit the same configuration.
+
+On the first start of each profile, the Host imports the old `llm-pi-ai` section from `$DSH_HOME/settings.yaml`, or `settings.yaml.imported` if DSH has already renamed it. Providers, model lists, input modalities, reasoning levels, and key references move into the actual pi-ai entry. The compatibility import only fills missing profile values, arrays stay intact, and successful imports record a migration marker. Failures retain the source and retry on restart. If multiple pi-ai entries have all been renamed, the plugin reports the ambiguity and leaves the source for manual assignment. It does not create extra providers or change credential storage. Back up DSH_HOME before upgrading; settings are profile-local afterward.
+
+Plugin display metadata is exported as `locale/en.json` and `locale/zh.json`, using `meta.title` and `meta.description`. DSH localizes the plugin list, details, and component names; the ordinary package description remains English for npm.
+
+The manifest declares a packaged SVG with `icon: "./icon.svg"`. The plugin uses a purple image/control mark.
 
 ## Installation
 
-Prerequisites: DeepSeek Harness (`dsh`) `>=0.1.5-alpha.1 <0.2.0` with the `web` profile.
+Prerequisites: DeepSeek Harness (`dsh`) `>=0.1.7-rc.1 <0.1.8-0` with the `web` profile.
 
 **From npm:**
 
@@ -101,7 +111,7 @@ Individual commands:
 
 ```sh
 pnpm run typecheck    # host + client faces
-pnpm test             # vitest suites over the pure row helpers
+pnpm test             # row, controller, and migration tests
 pnpm run build        # tsc d.ts + tsdown (lib/index.js & lib/client.cjs)
 ```
 
@@ -137,12 +147,12 @@ Dependabot checks GitHub Actions dependencies weekly. npm version updates are in
 ```text
 .
 ├─ src/
-│  ├─ index.ts             # Host half: an intentionally empty apply (browser-only plugin)
+│  ├─ index.ts             # Host half: profile-local legacy provider settings import
 │  ├─ model-row.ts         # the row vocabulary both claims share
 │  ├─ image-input.ts       # pure row helpers for the per-model input claim
 │  ├─ reasoning-efforts.ts # pure row helpers for the per-model reasoning claim
 │  └─ client/              # Web half: the capability fold (controller, card, locales)
-├─ tests/                  # vitest suites over the pure row helpers
+├─ tests/                  # row, controller, and migration tests
 ├─ build/                  # tsdown preset for the self-contained client bundle
 ├─ .github/workflows/ci.yml       # validate + tarball audit + consumer smoke
 ├─ .github/workflows/release.yml  # npm publish on GitHub Release
@@ -153,7 +163,7 @@ Dependabot checks GitHub Actions dependencies weekly. npm version updates are in
 ## Known limitations
 
 - Dormant (not yet configured) provider cards do not render the fold; a freshly created custom provider appears **after** it is saved.
-- Route-level knobs — `defaultInput`, the default `reasoning` level, and the `compat` switches — plus `modelOverrides` for built-in provider-catalog models are out of this plugin's scope; set them directly in `$DSH_HOME/settings.yaml`.
+- Route-level knobs — `defaultInput`, the default `reasoning` level, and the `compat` switches — plus `modelOverrides` for built-in provider-catalog models are out of this plugin's scope; set them directly in `$DSH_HOME/profiles/<profile>/cordis.patch.yml`.
 - A declared level is a claim, not a check: nothing asks the gateway whether it serves that level or honors that spelling, and how the level travels on the wire (`reasoning_effort`, a thinking budget, chat-template kwargs) is `compat`'s job. A level the endpoint refuses is refused by the provider, mid-turn.
 - A level unticked and ticked again restarts from its default spelling — its own name, empty for `off` — rather than reviving what it carried before.
 - In read-only settings deployments the fold is visible but cannot save.
