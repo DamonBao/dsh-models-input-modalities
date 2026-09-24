@@ -101,5 +101,6 @@ minimumReleaseAgeExclude:
   - '@deepseek-ai/dsh-client-ui-plugin-manager@0.1.7-rc.1'
 
   - '@deepseek-ai/dsh-hmr@0.1.7-rc.1'
+  - '@deepseek-ai/dsh-cmdline@0.1.7-rc.1'
   - '@deepseek-ai/cordis-plugin-timer@1.1.6'
   - '@deepseek-ai/cordis-plugin-include@1.0.9'
