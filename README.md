@@ -7,7 +7,7 @@
 
 English | [简体中文](README.zh.md)
 
-A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web client plugin that adds a **Model capabilities** fold to every third-party (pi-ai) provider card on the **Settings → Models** page, declaring per model which inputs it accepts (whether images are allowed) and which reasoning levels it offers — the two per-model fields the page's own forms deliberately do not expose. Built against DSH `0.1.7-rc.1` (peer range `>=0.1.7-rc.1 <0.1.8-0`).
+A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) Web client plugin that adds a **Model capabilities** fold to every third-party (pi-ai) provider card on the **Settings → Models** page, declaring per model which inputs it accepts (whether images are allowed) and which reasoning levels it offers — the two per-model fields the page's own forms deliberately do not expose. Built against DSH `0.2.0-rc.2` (peer range `>=0.2.0-rc.2 <0.3.0-0`).
 
 The providers themselves (provider ID, API base URL, protocol, API key, model list) are still created and edited entirely through the Models page forms; this plugin **pre-writes no provider configuration**.
 
@@ -77,12 +77,12 @@ The manifest declares a packaged SVG with `icon: "./icon.svg"`. The plugin uses 
 
 ## Installation
 
-Prerequisites: DeepSeek Harness (`dsh`) `>=0.1.7-rc.1 <0.1.8-0` with the `web` profile.
+Prerequisites: DeepSeek Harness (`dsh`) `>=0.2.0-rc.2 <0.3.0-0` with the `web` profile.
 
 **From npm:**
 
 ```sh
-dsh plugin --profile web add @jcy2387/dsh-models-input-modalities
+dsh plugin --profile web add @jcy2387/dsh-models-input-modalities@0.2.0-rc.2
 dsh web
 ```
 
