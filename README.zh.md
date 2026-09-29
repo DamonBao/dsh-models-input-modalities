@@ -7,7 +7,7 @@
 
 [English](README.md) | 简体中文
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）打造的 Web 客户端插件：给**设置 → 模型**页的每个第三方（pi-ai）提供方卡片补上一个**「模型能力」折叠区**，按模型声明它接受哪些输入（是否允许图片），以及它提供哪些推理等级——这正是模型页自带表单刻意没有开放的两个 per-model 字段。基于 DSH `0.1.7-rc.1` 构建（peer 范围 `>=0.1.7-rc.1 <0.1.8-0`）。
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）打造的 Web 客户端插件：给**设置 → 模型**页的每个第三方（pi-ai）提供方卡片补上一个**「模型能力」折叠区**，按模型声明它接受哪些输入（是否允许图片），以及它提供哪些推理等级——这正是模型页自带表单刻意没有开放的两个 per-model 字段。基于 DSH `0.2.0-rc.2` 构建（peer 范围 `>=0.2.0-rc.2 <0.3.0-0`）。
 
 提供方本身（Provider ID、API 地址、协议、密钥、模型列表）仍然完全在模型页的表单里创建和编辑；本插件**不预写任何提供方配置**。
 
@@ -78,12 +78,12 @@ models:
 
 ## 安装
 
-前置条件：DeepSeek Harness（`dsh`）`>=0.1.7-rc.1 <0.1.8-0`（装有 `web` profile）。
+前置条件：DeepSeek Harness（`dsh`）`>=0.2.0-rc.2 <0.3.0-0`（装有 `web` profile）。
 
 **从 npm 安装：**
 
 ```sh
-dsh plugin --profile web add @jcy2387/dsh-models-input-modalities
+dsh plugin --profile web add @jcy2387/dsh-models-input-modalities@0.2.0-rc.2
 dsh web
 ```
 
